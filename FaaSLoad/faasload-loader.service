@@ -1,0 +1,9 @@
+[Unit]
+Description=FaaSLoad's load injector to FaaS platform
+
+[Service]
+# unbuffer stdout/stderr
+Environment=PYTHONUNBUFFERED=1
+# SET THIS PATH (defaults to ~/FaaSLoad)
+WorkingDirectory=%h/FaaSLoad
+ExecStart=/usr/bin/pipenv run python -m loader

@@ -1,0 +1,7 @@
+*.genstate
+*.egg-info/
+**/__pycache__/
+/build
+# base installation on setup.py
+Pipfile
+Pipfile.lock

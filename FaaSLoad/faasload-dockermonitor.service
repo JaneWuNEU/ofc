@@ -1,0 +1,11 @@
+[Unit]
+Description=FaaSLoad's monitor of Docker operations
+
+[Service]
+# unbuffer stdout/stderr
+Environment=PYTHONUNBUFFERED=1
+# SET THIS PATH (defaults to ~/FaaSLoad)
+WorkingDirectory=%h/FaaSLoad
+ExecStart=/usr/bin/pipenv run python -m docker_monitor
+# clean up left-over sockets
+ExecStopPost=rm -f /run/wdm/notif /run/wdm/meas

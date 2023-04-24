@@ -1,0 +1,15 @@
+# generated CSV and ARFF files are ignored, but base data files in folder "data"
+# are forcibly added to the repo
+*.csv
+*.arff
+
+*.model
+**/res/
+
+/results/
+/figures/
+
+*.class
+.ipynb_checkpoints/
+
+Pipfile.lock

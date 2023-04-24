@@ -1,0 +1,64 @@
+# Configuration for the monitor
+
+# You can use environment variables and the home "~" shortcuts in paths, they will be expanded (in this order).
+# The monitor is FaaSLoad's component that monitors OpenWhisk's Docker containers used to activate actions.
+
+# Notification
+# Configuration of how the monitor gets notifications of Docker container management actions taken by OpenWhisk.
+notification:
+  # Path to the UNIX socket to receive notifications from OpenWhisk (this is the socket that gets mounted in OpenWhisk's "invoker" Docker container.
+  # Default: "/run/wdm/notif"
+  sock:
+
+# Monitor
+monitor:
+  # Measurement resolution (seconds)
+  # The monitor registers a measurement of CPU and memory usage at this rate.
+  # Default: 0.01
+  resolution:
+  # Date (seconds) of the oldest measurement kept
+  # It determines the size of the data structure that stores the measurements, that also depends on the resolution.
+  # Default: 1800
+  maxage:
+
+# Measurement server
+# This is the component that serves measurements to FaaSLoad's injector
+measurementserver:
+  # Path to the UNIX socket to requests measurements from the monitor of OpenWhisk's Dockers
+  # Default: "/run/wdm/meas"
+  sock:
+
+# Logging
+# This section is directly passed to Python's logging module.
+# More info here: https://docs.python.org/3/library/logging.html#module-logging
+logging:
+  # Fixed field required by Python logging module
+  version: 1
+  # Customize the root handler (by default, only improves the logging format by defining a new "root" handler).
+  root:
+    # Global logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL, NOTSET
+    level: INFO
+    handlers: [ root ]
+  # Logger customization
+  # More loggers are used, and by default they inherit from the root logger.
+  # Other loggers: measurementserver, notifications
+  loggers:
+    # Sub-logger for the monitor threads
+    monitor:
+      handlers: [ monitor ]
+      propagate: false
+  handlers:
+    root:
+      class: logging.StreamHandler
+      formatter: root
+    monitor:
+      class: logging.StreamHandler
+      formatter: monitor
+  formatters:
+    root:
+      format: "[%(asctime)s][%(levelname)s][%(name)s] %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"
+     # The logger for the monitor component displays the monitor's thread name, which includes the container's ID
+    monitor:
+      format: "[%(asctime)s][%(levelname)s][%(name)s][%(threadName)s] %(message)s"
+      datefmt: "%Y-%m-%d %H:%M:%S"

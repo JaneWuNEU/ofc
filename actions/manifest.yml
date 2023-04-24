@@ -1,0 +1,292 @@
+packages:
+  dataset_gen:
+    inputs:
+      authurl:
+        type: string
+        description: "Swift authentication URL"
+        value: $ST_AUTH
+        required: true
+      user:
+        type: string
+        description: "user to reach Swift storage"
+        value: $ST_USER
+        required: true
+      key:
+        type: string
+        description: "password of the user to reach Swift storage"
+        value: $ST_KEY
+        required: true
+    actions:
+      sharp_blur:
+        function: build/js_sharp/blur.zip
+        runtime: nodejs:12
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: sigma
+              type: range_float
+              description: sigma blurring coefficient
+              min: 0.3
+              max: 100
+      sharp_sepia:
+        function: build/js_sharp/sepia.zip
+        runtime: nodejs:12
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      sharp_resize:
+        function: build/js_sharp/resize.zip
+        runtime: nodejs:12
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: width
+              type: range_int
+              description: target width
+              min: 100
+              max: 1920
+      sharp_convert:
+        function: build/js_sharp/convert.zip
+        runtime: nodejs:12
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: format
+              type: ensemble
+              description: target format
+              values: [webp, tiff, png]
+      wand_blur:
+        function: build/py_wand/blur.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: sigma
+              type: range_float
+              description: sigma blurring coefficient
+              min: 0.3
+              max: 100
+      wand_denoise:
+        function: build/py_wand/denoise.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: threshold
+              type: range_float
+              description: noise threshold
+              min: 0
+              max: 1
+            - name: softness
+              type: range_float
+              description: denoising softness
+              min: 0
+              max: 1
+      wand_edge:
+        function: build/py_wand/edge.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      wand_resize:
+        function: build/py_wand/resize.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: width
+              type: range_int
+              description: target width
+              min: 100
+              max: 1920
+      wand_rotate:
+        function: build/py_wand/rotate.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: angle
+              type: ensemble
+              description: rotation angle (counter-clockwise)
+              values: [90, 180, 270]
+      wand_sepia:
+        function: build/py_wand/sepia.zip
+        docker: python3action:wand
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: image
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      soundfile_fft:
+        function: build/py_soundfile/fft.zip
+        docker: python3action:soundfile
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      soundfile_audio:
+        function: build/py_soundfile/audio.zip
+        docker: python3action:soundfile
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      speechrecognition_sphinx:
+        function: build/py_speechrecognition/sphinx.zip
+        docker: python3action:speechrecognition
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      speechrecognition_google:
+        function: build/py_speechrecognition/google.zip
+        docker: python3action:speechrecognition
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      pydub_effects:
+        function: build/py_pydub/effects.zip
+        docker: python3action:pydub
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      pydub_convert:
+        function: build/py_pydub/convert.zip
+        docker: python3action:pydub
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: audio
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+            - name: format
+              type: ensemble
+              description: target format
+              values: [mp3, aiff, flac]
+      moviepy_subclip:
+        function: build/py_moviepy/subclip.zip
+        docker: python3action:moviepy
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: video
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      moviepy_resize:
+        function: build/py_moviepy/resize.zip
+        docker: python3action:moviepy
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: video
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      moviepy_setstart:
+        function: build/py_moviepy/setstart.zip
+        docker: python3action:moviepy
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: video
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      moviepy_frame:
+        function: build/py_moviepy/frame.zip
+        docker: python3action:moviepy
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: video
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object
+      moviepy_setvolume:
+        function: build/py_moviepy/setvolume.zip
+        docker: python3action:moviepy
+        limits:
+          memorySize: 3072
+        annotations:
+          input_kind: video
+          parameters:
+            - name: object
+              type: string
+              description: name of the input object

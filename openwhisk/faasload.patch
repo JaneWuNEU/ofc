@@ -1,0 +1,141 @@
+diff --git a/ansible/group_vars/all b/ansible/group_vars/all
+index 216a6821..aaa9559c 100644
+--- a/ansible/group_vars/all
++++ b/ansible/group_vars/all
+@@ -74,6 +74,8 @@ limits:
+   concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
+   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
+   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
++limit_action_memory_min: "67108864B"
++limit_action_memory_max: "3221225472B"
+ 
+ # Moved here to avoid recursions. Please do not use outside of controller-dict.
+ __controller_ssl_keyPrefix: "controller-"
+@@ -191,7 +193,7 @@ invoker:
+   port: 12001
+   heap: "{{ invoker_heap | default('2g') }}"
+   arguments: "{{ invoker_arguments | default('') }}"
+-  userMemory: "{{ invoker_user_memory | default('2048m') }}"
++  userMemory: "{{ invoker_user_memory | default('3072m') }}"
+   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
+   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
+   # Specify if it should use docker-runc or docker to pause/unpause containers
+diff --git a/ansible/roles/cli/tasks/deploy.yml b/ansible/roles/cli/tasks/deploy.yml
+index 423375ee..d4df91e8 100644
+--- a/ansible/roles/cli/tasks/deploy.yml
++++ b/ansible/roles/cli/tasks/deploy.yml
+@@ -35,7 +35,7 @@
+   get_url:
+     url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+     dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
+-    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
++    headers: "{{ openwhisk_cli.remote.headers | default({}) }}"
+   when: openwhisk_cli.installation_mode == "remote"
+ 
+ - name: "... or Copy release archive to build directory"
+diff --git a/ansible/roles/invoker/tasks/deploy.yml b/ansible/roles/invoker/tasks/deploy.yml
+index ea4ce481..81674205 100644
+--- a/ansible/roles/invoker/tasks/deploy.yml
++++ b/ansible/roles/invoker/tasks/deploy.yml
+@@ -319,7 +319,8 @@
+       {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
+       {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
+       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
+-      {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
++      {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock,\
++      /run/wdm/notif:/run/wdm/notif"
+ ###
+ # The root runc directory varies based on the version of docker and runc.
+ # When docker>=18.06 uses docker-runc the directory is /run/docker/runtime-runc/moby.
+diff --git a/core/invoker/.dockerignore b/core/invoker/.dockerignore
+index d6a369a3..476f95fe 100644
+--- a/core/invoker/.dockerignore
++++ b/core/invoker/.dockerignore
+@@ -1,4 +1,6 @@
+ *
+ !init.sh
++!docker
++!docker-runc
+ !build/distributions
+ !build/tmp/docker-coverage
+diff --git a/core/invoker/Dockerfile b/core/invoker/Dockerfile
+index bf25b3ac..17fb682f 100644
+--- a/core/invoker/Dockerfile
++++ b/core/invoker/Dockerfile
+@@ -36,6 +36,16 @@ RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/
+     chmod +x /usr/bin/docker && \
+     chmod +x /usr/bin/docker-runc
+ 
++# Replace docker and docker-runc with wrappers that notify a UNIX socket for
++# container commands made by OpenWhisk
++RUN mv /usr/bin/docker /usr/bin/docker.orig && \
++    mv /usr/bin/docker-runc /usr/bin/docker-runc.orig
++
++# COPY syntax is a fucking cancer: destination is the last item in this "list"
++COPY ["docker", "docker-runc", "/usr/bin/"]
++RUN chmod +x /usr/bin/docker && \
++    chmod +x /usr/bin/docker-runc
++
+ ADD build/distributions/invoker.tar ./
+ 
+ COPY init.sh /
+diff --git a/core/invoker/docker b/core/invoker/docker
+new file mode 100644
+index 00000000..1b8cf259
+--- /dev/null
++++ b/core/invoker/docker
+@@ -0,0 +1,24 @@
++#!/bin/bash
++
++DOCKER_ORIG="/usr/bin/docker.orig"
++WDM_NOTIF_SOCK="/run/wdm/notif"
++
++
++docker_out=$("$DOCKER_ORIG" "$@")
++docker_ret=$?
++
++
++if [ $docker_ret -eq 0 ]; then
++    # a "local:" address for netcat means a UNIX socket
++    # DO NOT USE UDP (even with a corresponding server I mean): netcat does not
++    # close the connection and blocks; only TCP will work as expected
++    case "$1" in
++        run) echo '{"action": "run", "container": "'"$docker_out"'"}' | nc local:"$WDM_NOTIF_SOCK";;
++        rm) echo '{"action": "rm", "container": "'"$3"'"}' | nc local:"$WDM_NOTIF_SOCK";;
++    esac
++fi
++
++
++echo "$docker_out"
++exit $docker_ret
++
+diff --git a/core/invoker/docker-runc b/core/invoker/docker-runc
+new file mode 100644
+index 00000000..88347c80
+--- /dev/null
++++ b/core/invoker/docker-runc
+@@ -0,0 +1,24 @@
++#!/bin/bash
++
++DOCKER_ORIG="/usr/bin/docker-runc.orig"
++WDM_NOTIF_SOCK="/run/wdm/notif"
++
++
++docker_out=$("$DOCKER_ORIG" "$@")
++docker_ret=$?
++
++
++if [ $docker_ret -eq 0 ]; then
++    # a "local:" address for netcat means a UNIX socket
++    # DO NOT USE UDP (even with a corresponding server I mean): netcat does not
++    # close the connection and blocks; only TCP will work as expected
++    case "$1" in
++        pause) echo '{"action": "pause", "container": "'"$2"'"}' | nc local:"$WDM_NOTIF_SOCK";;
++        resume) echo '{"action": "resume", "container": "'"$2"'"}' | nc local:"$WDM_NOTIF_SOCK";;
++    esac
++fi
++
++
++echo "$docker_out"
++exit $docker_ret
++

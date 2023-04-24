@@ -1,0 +1,24 @@
+#!/bin/bash
+
+DOCKER_ORIG="/usr/bin/docker.orig"
+WDM_NOTIF_SOCK="/run/wdm/notif"
+
+
+docker_out=$("$DOCKER_ORIG" "$@")
+docker_ret=$?
+
+
+if [ $docker_ret -eq 0 ]; then
+    # a "local:" address for netcat means a UNIX socket
+    # DO NOT USE UDP (even with a corresponding server I mean): netcat does not
+    # close the connection and blocks; only TCP will work as expected
+    case "$1" in
+        run) echo '{"action": "run", "container": "'"$docker_out"'"}' | nc local:"$WDM_NOTIF_SOCK";;
+        rm) echo '{"action": "rm", "container": "'"$3"'"}' | nc local:"$WDM_NOTIF_SOCK";;
+    esac
+fi
+
+
+echo "$docker_out"
+exit $docker_ret
+
